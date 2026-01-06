@@ -71,6 +71,13 @@ type Command struct {
 	Attributes []string
 	// Args is a list of any extra arguments to pass.
 	Args []string
+	// Env is the environment the command will run in.
+	// Env is similar to exec.Cmd.Env, namely:
+	// - Each entry is of the form "key=value".
+	// - If Env is nil, the Command uses the current process's
+	// environment.
+	// - If Env contains duplicate key-value strings, the last will be used
+	Env []string
 	// cache is an optional groupcache pool to cache
 	// queries. Inititalize with WithCache().
 	cache         *groupcache.HTTPPool
@@ -96,6 +103,7 @@ func (c *Command) Copy() *Command {
 		Constraint:    c.Constraint,
 		Attributes:    make([]string, len(c.Attributes)),
 		Args:          make([]string, len(c.Args)),
+		Env:           make([]string, len(c.Env)),
 		cache:         c.cache,
 		cacheGroup:    c.cacheGroup,
 		cacheLifetime: c.cacheLifetime,
@@ -105,6 +113,9 @@ func (c *Command) Copy() *Command {
 	}
 	if len(c.Args) > 0 {
 		copy(cc.Args, c.Args)
+	}
+	if len(c.Env) > 0 {
+		copy(cc.Env, c.Env)
 	}
 	return &cc
 }
@@ -166,6 +177,12 @@ func (c *Command) WithArg(arg string) *Command {
 	return c
 }
 
+// WithEnv sets the environment in which the command will run.
+func (c *Command) WithEnv(env []string) *Command {
+	c.Env = env
+	return c
+}
+
 // MakeArgs builds the complete argument list to be passed to the command.
 func (c *Command) MakeArgs() []string {
 	args := make([]string, 0)
@@ -196,13 +213,17 @@ func (c *Command) MakeArgs() []string {
 // Cmd generates an exec.Cmd you can use to run the command manually.
 // Use Run() to run the command and get back ClassAds.
 func (c *Command) Cmd() *exec.Cmd {
-	return exec.Command(c.Command, c.MakeArgs()...)
+	cmd := exec.Command(c.Command, c.MakeArgs()...)
+	cmd.Env = c.Env
+	return cmd
 }
 
 // CmdContext generates an exec.Cmd with context you can use to run the command
 // manually. Use Run() to run the command and get back ClassAds.
 func (c *Command) CmdContext(ctx context.Context) *exec.Cmd {
-	return exec.CommandContext(ctx, c.Command, c.MakeArgs()...)
+	cmd := exec.CommandContext(ctx, c.Command, c.MakeArgs()...)
+	cmd.Env = c.Env
+	return cmd
 }
 
 // encodeKey encodes the command into a string, to be used as a cache key.

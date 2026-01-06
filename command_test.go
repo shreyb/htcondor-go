@@ -1,6 +1,7 @@
 package htcondor
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/golang/groupcache"
@@ -201,4 +202,23 @@ func TestCondorHistoryAttribute(t *testing.T) {
 		t.Errorf("expected one ClassAd, got %d", len(ads))
 	}
 	t.Log(ads)
+}
+
+func TestCondorCommandWithEnv(t *testing.T) {
+	inputEnv := []string{"FOO=bar"}
+	c := NewCommand("condor_q").WithEnv(inputEnv)
+	if !slices.Equal(inputEnv, c.Env) {
+		t.Errorf("Did not get expected Env field. Expected %v, got %v", inputEnv, c.Env)
+	}
+}
+
+func TestCondorCommandEnv(t *testing.T) {
+	// Set environment up that we want to override in the invocation of NewCommand
+	t.Setenv("FOO", "bar")
+	c := NewCommand("condor_q").WithEnv([]string{"FOO=baz"}) // This should set FOO=baz in the Command.Env field
+	cmd := c.Cmd()
+	if !slices.Contains(cmd.Environ(), "FOO=baz") {
+		t.Error("expected environment variable setting \"FOO=baz\" to be set in Command.Env, but did not find it")
+	}
+	t.Log(cmd.Environ())
 }
